@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikSave - Download Video TikTok, IG, & YouTube</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-secondary: #12121a;
+            --fg: #f0f0f5;
+            --muted: #6b6b7b;
+            --accent: #00f5d4; /* Cyan for TikTok */
+            --accent-ig: #ff2e97; /* Pink for IG */
+            --accent-yt: #ff0000; /* Red for YT */
+            --card: #1a1a24;
+            --border: #2a2a3a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background 0.5s ease;
+        }
+
+        /* Dynamic Background Gradient based on active platform */
+        body.platform-tiktok { --active-accent: var(--accent); }
+        body.platform-ig { --active-accent: var(--accent-ig); }
+        body.platform-yt { --active-accent: var(--accent-yt); }
+
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; }
+
+        /* Background Effects */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+            transition: background 1s ease, transform 10s ease;
+        }
+
+        .glow-1 { top: -200px; right: -100px; background: var(--active-accent, var(--accent)); animation: float 20s ease-in-out infinite; }
+        .glow-2 { bottom: -200px; left: -100px; background: var(--active-accent, var(--accent)); animation: float 25s ease-in-out infinite reverse; opacity: 0.08; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, 50px) scale(1.1); }
+        }
+
+        /* Tabs */
+        .tabs-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            background: var(--bg-secondary);
+            padding: 6px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            padding: 10px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover { color: var(--fg); background: rgba(255,255,255,0.05); }
+        
+        .tab-btn.active { background: var(--active-accent, var(--accent)); color: var(--bg); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+
+        /* Input Styling */
+        .input-wrapper {
+            position: relative;
+            background: linear-gradient(135deg, var(--card), var(--bg-secondary));
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--active-accent, var(--accent));
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.05);
+        }
+
+        .url-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 18px 24px;
+            font-size: 16px;
+            color: var(--fg);
+        }
+
+        .url-input::placeholder { color: var(--muted); }
+
+        /* Button */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--active-accent, var(--accent)), #00c4a7);
+            color: var(--bg);
+            font-weight: 600;
+            padding: 16px 32px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-width: 160px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+
+        .loader {
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--bg);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        .btn-primary.loading .loader { display: block; }
+        .btn-primary.loading .btn-text { display: none; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Result Container */
+        .result-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 32px;
+            min-height: 100px;
+        }
+
+        /* Result Card */
+        .result-card {
+            width: 100%;
+            max-width: 380px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            display: none;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .result-card.show {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+
+        .media-preview {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 9 / 16; /* Default to TikTok */
+            background: #000;
+            overflow: hidden;
+        }
+        
+        /* Adjust for Landscape/YT */
+        .media-preview.landscape {
+            aspect-ratio: 16 / 9;
+        }
+        
+        /* Adjust for Square/IG */
+        .media-preview.square {
+            aspect-ratio: 1 / 1;
+        }
+
+        .media-preview img, .media-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .media-info {
+            padding: 20px;
+            background: var(--card);
+        }
+
+        .media-title {
+            font-weight: 600;
+            font-size: 15px;
+            line-height: 1.4;
+            margin-bottom: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .media-author {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+
+        /* Download Buttons */
+        .download-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .download-btn {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .download-btn.main {
+            background: var(--active-accent, var(--accent));
+            color: var(--bg);
+            border: none;
+        }
+
+        .download-btn.main:hover {
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+        }
+
+        .download-btn.secondary {
+            background: transparent;
+            color: var(--fg);
+            border: 1px solid var(--border);
+        }
+
+        .download-btn.secondary:hover {
+            border-color: var(--fg);
+        }
+
+        /* Error */
+        .error-message {
+            background: rgba(255, 46, 151, 0.1);
+            border: 1px solid rgba(255, 46, 151, 0.3);
+            color: #ff6b9d;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            margin-top: 16px;
+            justify-content: center;
+        }
+        .error-message.show { display: flex; animation: shake 0.5s ease; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+
+        /* Platform Specific Accents */
+        .text-accent { color: var(--active-accent, var(--accent)); }
+        
+        /* Features Section */
+        .feature-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.4s ease;
+        }
+
+        .feature-card:hover {
+            border-color: var(--active-accent, var(--accent));
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            color: var(--active-accent, var(--accent));
+        }
+
+        /* FAQ Accordion */
+        details {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        details[open] { border-color: var(--active-accent, var(--accent)); }
+        summary {
+            padding: 18px 20px;
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+        }
+        summary::after {
+            content: '+';
+            font-size: 20px;
+            color: var(--active-accent, var(--accent));
+            transition: transform 0.3s ease;
+        }
+        details[open] summary::after { transform: rotate(45deg); }
+        .faq-content { padding: 0 20px 20px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+        /* Reveal Animation */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body class="platform-tiktok">
+    <div class="bg-grid"></div>
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <main class="relative z-10">
+        <!-- Header -->
+        <header class="py-6 px-4">
+            <div class="max-w-6xl mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-[var(--active-accent)] to-[#555] rounded-xl flex items-center justify-center transition-colors duration-500" id="logoIcon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-[var(--bg)]">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-bold">TikSave</span>
+                </div>
+                <!-- Simple Badge -->
+                <div class="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--bg-secondary)] text-xs font-medium text-[var(--muted)]">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    API Online
+                </div>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="pt-8 pb-16 px-4">
+            <div class="max-w-2xl mx-auto text-center">
+                <h1 class="text-3xl md:text-4xl font-bold mb-3">
+                    Download Video <span class="text-accent">Tanpa Batas</span>
+                </h1>
+                <p class="text-[var(--muted)] mb-8">TikTok, Instagram Reels, YouTube Shorts. Cepat, Gratis, Tanpa Watermark.</p>
+
+                <!-- Tabs -->
+                <div class="tabs-container reveal">
+                    <button class="tab-btn active" onclick="switchPlatform('tiktok', this)">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>
+                        TikTok
+                    </button>
+                    <button class="tab-btn" onclick="switchPlatform('instagram', this)">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                        Instagram
+                    </button>
+                    <button class="tab-btn" onclick="switchPlatform('youtube', this)">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                        YouTube
+                    </button>
+                </div>
+
+                <!-- Form -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <div class="input-wrapper flex-1 max-w-xl">
+                        <input type="text" id="urlInput" class="url-input" placeholder="Tempel link TikTok di sini..." autocomplete="off">
+                    </div>
+                    <button id="downloadBtn" class="btn-primary">
+                        <div class="loader"></div>
+                        <span class="btn-text">Download</span>
+                    </button>
+                </div>
+                
+                <div id="errorMessage" class="error-message max-w-xl mx-auto">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <span id="errorText">Link tidak valid.</span>
+                </div>
+
+                <!-- Result Card -->
+                <div class="result-container">
+                    <div id="resultCard" class="result-card">
+                        <div class="media-preview" id="mediaPreviewContainer">
+                            <img id="mediaThumbnail" src="" alt="Preview">
+                        </div>
+                        <div class="media-info">
+                            <h3 id="mediaTitle" class="media-title">Judul Media</h3>
+                            <p id="mediaAuthor" class="media-author">@username</p>
+                            <div class="download-buttons" id="downloadButtons">
+                                <!-- Buttons injected by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How to Use Section -->
+        <section id="cara" class="py-20 px-4 border-t border-[var(--border)]">
+            <div class="max-w-5xl mx-auto">
+                <div class="text-center mb-16 reveal">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4">Cara Pakai</h2>
+                    <p class="text-[var(--muted)]">Tiga langkah mudah untuk download video favoritmu</p>
+                </div>
+                
+                <div class="grid md:grid-cols-3 gap-6">
+                    <div class="feature-card reveal" style="transition-delay: 0.1s;">
+                        <div class="feature-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                        </div>
+                        <div class="text-accent text-sm font-semibold mb-2">Langkah 1</div>
+                        <h3 class="text-lg font-semibold mb-2">Salin Link</h3>
+                        <p class="text-[var(--muted)] text-sm">Buka aplikasi (TikTok, IG, YT), pilih video, lalu tekan "Salin Link".</p>
+                    </div>
+                    
+                    <div class="feature-card reveal" style="transition-delay: 0.2s;">
+                        <div class="feature-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </div>
+                        <div class="text-accent text-sm font-semibold mb-2">Langkah 2</div>
+                        <h3 class="text-lg font-semibold mb-2">Tempel Link</h3>
+                        <p class="text-[var(--muted)] text-sm">Pilih platform di tab atas, lalu tempel link ke kolom input.</p>
+                    </div>
+                    
+                    <div class="feature-card reveal" style="transition-delay: 0.3s;">
+                        <div class="feature-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        </div>
+                        <div class="text-accent text-sm font-semibold mb-2">Langkah 3</div>
+                        <h3 class="text-lg font-semibold mb-2">Download</h3>
+                        <p class="text-[var(--muted)] text-sm">Klik tombol download yang tersedia dan simpan ke perangkatmu.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="fitur" class="py-20 px-4 bg-[var(--bg-secondary)]">
+            <div class="max-w-5xl mx-auto">
+                <div class="text-center mb-16 reveal">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4">Kenapa TikSave?</h2>
+                    <p class="text-[var(--muted)]">Fitur lengkap untuk kebutuhan download media sosialmu</p>
+                </div>
+                
+                <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div class="feature-card reveal">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        <h3 class="font-semibold mb-1">Tanpa Watermark</h3>
+                        <p class="text-[var(--muted)] text-sm">Bersih tanpa logo aplikasi yang mengganggu.</p>
+                    </div>
+                    
+                    <div class="feature-card reveal" style="transition-delay: 0.1s;">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <h3 class="font-semibold mb-1">Super Cepat</h3>
+                        <p class="text-[var(--muted)] text-sm">Proses download dalam hitungan detik.</p>
+                    </div>
+                    
+                    <div class="feature-card reveal" style="transition-delay: 0.2s;">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                        <h3 class="font-semibold mb-1">Multi-Platform</h3>
+                        <p class="text-[var(--muted)] text-sm">Satu tempat untuk TikTok, IG, dan YouTube.</p>
+                    </div>
+                    
+                    <div class="feature-card reveal" style="transition-delay: 0.3s;">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        <h3 class="font-semibold mb-1">100% Gratis</h3>
+                        <p class="text-[var(--muted)] text-sm">Tanpa biaya tersembunyi, gratis selamanya.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="py-20 px-4">
+            <div class="max-w-2xl mx-auto">
+                <div class="text-center mb-12 reveal">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4">Pertanyaan Umum</h2>
+                </div>
+                
+                <div class="space-y-4">
+                    <details class="reveal">
+                        <summary>Apakah TikSave gratis?</summary>
+                        <div class="faq-content">
+                            Ya, TikSave 100% gratis tanpa batasan jumlah download. Tidak perlu registrasi atau pembayaran apapun.
+                        </div>
+                    </details>
+                    
+                    <details class="reveal" style="transition-delay: 0.1s;">
+                        <summary>Apakah bisa download video private?</summary>
+                        <div class="faq-content">
+                            Tidak, TikSave hanya bisa mendownload video yang bersifat publik (bisa dilihat semua orang). Video private/terkunci tidak dapat diakses.
+                        </div>
+                    </details>
+                    
+                    <details class="reveal" style="transition-delay: 0.2s;">
+                        <summary>Format apa yang didukung?</summary>
+                        <div class="faq-content">
+                            Kami mendukung format MP4 untuk video dengan kualitas HD (720p/1080p) sesuai aslinya, dan MP3 untuk audio.
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="py-8 px-4 border-t border-[var(--border)]">
+            <div class="max-w-6xl mx-auto text-center text-sm text-[var(--muted)]">
+                <p>2025 TikSave. Tool independen, tidak berafiliasi dengan TikTok, Instagram, atau YouTube.</p>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        // --- State Management ---
+        let currentPlatform = 'tiktok'; // default
+
+        // --- DOM Elements ---
+        const urlInput = document.getElementById('urlInput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const resultCard = document.getElementById('resultCard');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        
+        const mediaThumbnail = document.getElementById('mediaThumbnail');
+        const mediaTitle = document.getElementById('mediaTitle');
+        const mediaAuthor = document.getElementById('mediaAuthor');
+        const downloadButtons = document.getElementById('downloadButtons');
+        const mediaPreviewContainer = document.getElementById('mediaPreviewContainer');
+
+        // --- Platform Switching Logic ---
+        function switchPlatform(platform, btnElement) {
+            currentPlatform = platform;
+            
+            // Update UI Tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+
+            // Update Body Class (for Colors)
+            document.body.className = `platform-${platform}`;
+            
+            // Update Placeholders
+            const placeholders = {
+                'tiktok': 'Tempel link TikTok di sini...',
+                'instagram': 'Tempel link Instagram (Reels/Post)...',
+                'youtube': 'Tempel link YouTube di sini...'
+            };
+            urlInput.placeholder = placeholders[platform];
+            
+            // Reset State
+            resetUI();
+        }
+
+        function resetUI() {
+            resultCard.classList.remove('show');
+            errorMessage.classList.remove('show');
+            urlInput.value = '';
+            downloadButtons.innerHTML = '';
+        }
+
+        function showError(msg) {
+            errorText.textContent = msg;
+            errorMessage.classList.add('show');
+            resultCard.classList.remove('show');
+        }
+
+        function hideError() {
+            errorMessage.classList.remove('show');
+        }
+
+        // --- API Handling ---
+
+        /* 
+           1. TIKTOK API: tikwm.com 
+        */
+        async function fetchTikTok(url) {
+            const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}`;
+            const response = await fetch(apiUrl);
+            const result = await response.json();
+            if (result.code !== 0 || !result.data) throw new Error(result.msg || 'Gagal mengambil data TikTok');
+            return processTikTokData(result.data);
+        }
+
+        function processTikTokData(data) {
+            mediaThumbnail.src = data.cover || data.origin_cover;
+            mediaTitle.textContent = data.title || 'Video TikTok';
+            mediaAuthor.textContent = `@${data.author?.nickname || data.author?.unique_id || 'TikTok User'}`;
+            
+            // Set Aspect Ratio
+            mediaPreviewContainer.className = 'media-preview'; // 9:16 default
+
+            const buttonsHtml = `
+                <a href="${data.play}" class="download-btn main" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Download Tanpa Watermark
+                </a>
+                <a href="${data.wmplay || data.play}" class="download-btn secondary" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    Download Dengan Watermark
+                </a>
+            `;
+            downloadButtons.innerHTML = buttonsHtml;
+        }
+
+        /* 
+           2. INSTAGRAM & YOUTUBE API: cobalt.tools 
+           (Uses a simple POST request to their public API endpoint)
+        */
+        async function fetchCobalt(url) {
+            // Cobalt API endpoint
+            const apiUrl = 'https://cobalt-api.kwiatekmiki.pl/api/json'; // Note: Public instances might change, this is a common stable one. 
+            // Fallback common one:
+            // const apiUrl = 'https://co.wuk.sh/api/json'; 
+
+            const payload = {
+                url: url,
+                vCodec: "h264", // Better compatibility
+                vQuality: "720", // 720 or 1080 usually
+                aFormat: "mp3"
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error('Gagal menghubungi server API (Cobalt).');
+            }
+            
+            const data = await response.json();
+            
+            if (data.status === 'error') {
+                throw new Error(data.text || 'Link tidak valid atau private.');
+            }
+            
+            return processCobaltData(data);
+        }
+
+        function processCobaltData(data) {
+            // Detect type for aspect ratio
+            const isYoutube = currentPlatform === 'youtube';
+            const isLandscape = data.thumbnail && (data.thumbnail.includes('maxres') || Math.random() > 0.5); // Simple heuristic
+            
+            if (isYoutube) {
+                mediaPreviewContainer.className = 'media-preview landscape'; // YT usually 16:9
+            } else {
+                mediaPreviewContainer.className = 'media-preview square'; // IG usually square or 4:5
+            }
+
+            mediaThumbnail.src = data.thumbnail;
+            
+            // Title processing
+            if (isYoutube) {
+                 // Extract title from filename if API doesn't return clean title, 
+                 // but Cobalt usually returns it in `status` string or we just use generic
+                 mediaTitle.textContent = "Video YouTube";
+            } else {
+                 mediaTitle.textContent = "Media Instagram";
+            }
+            
+            mediaAuthor.textContent = "Social Media User";
+
+            const buttonsHtml = `
+                <a href="${data.url}" class="download-btn main" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Download ${isYoutube ? 'Video/MP4' : 'Tanpa Watermark'}
+                </a>
+            `;
+            downloadButtons.innerHTML = buttonsHtml;
+        }
+
+
+        // --- Main Handler ---
+        async function handleDownload() {
+            const url = urlInput.value.trim();
+            
+            // Basic Validation
+            if (!url) {
+                showError('Masukkan link terlebih dahulu.');
+                return;
+            }
+
+            // Simple Domain Check
+            const validDomains = {
+                'tiktok': 'tiktok.com',
+                'instagram': 'instagram.com',
+                'youtube': ['youtube.com', 'youtu.be']
+            };
+
+            const domain = validDomains[currentPlatform];
+            const isValid = Array.isArray(domain) 
+                ? domain.some(d => url.includes(d))
+                : url.includes(domain);
+
+            if (!isValid) {
+                showError(`Link tidak valid untuk platform ${currentPlatform}.`);
+                return;
+            }
+
+            hideError();
+            downloadBtn.classList.add('loading');
+            downloadBtn.disabled = true;
+            resultCard.classList.remove('show');
+
+            try {
+                if (currentPlatform === 'tiktok') {
+                    await fetchTikTok(url);
+                } else {
+                    // Instagram & Youtube use Cobalt
+                    await fetchCobalt(url);
+                }
+
+                // Show Result
+                resultCard.classList.add('show');
+                setTimeout(() => {
+                    resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+
+            } catch (error) {
+                console.error(error);
+                showError(error.message || 'Gagal mengambil data. Coba lagi nanti.');
+            } finally {
+                downloadBtn.classList.remove('loading');
+                downloadBtn.disabled = false;
+            }
+        }
+
+        // --- Event Listeners ---
+        downloadBtn.addEventListener('click', handleDownload);
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleDownload();
+        });
+
+        urlInput.addEventListener('paste', () => {
+            // Auto-detect platform if user pastes a link without selecting tab first
+            setTimeout(() => {
+                const val = urlInput.value;
+                if (val.includes('instagram.com')) {
+                    const btn = document.querySelectorAll('.tab-btn')[1];
+                    switchPlatform('instagram', btn);
+                } else if (val.includes('youtube.com') || val.includes('youtu.be')) {
+                    const btn = document.querySelectorAll('.tab-btn')[2];
+                    switchPlatform('youtube', btn);
+                } else if (val.includes('tiktok.com')) {
+                    const btn = document.querySelectorAll('.tab-btn')[0];
+                    switchPlatform('tiktok', btn);
+                }
+            }, 100);
+        });
+
+        // --- Scroll Reveal Animation ---
+        const revealElements = document.querySelectorAll('.reveal');
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+        revealElements.forEach(el => revealObserver.observe(el));
+    </script>
+</body>
+</html>
